@@ -1,10 +1,16 @@
 import { StatusBar } from "expo-status-bar";
 import React, { useState, useEffect, useCallback } from "react";
-import { Text, View } from "react-native";
+import { Text, View, useColorScheme } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
 import { Ionicons } from "@expo/vector-icons";
 import { Asset, useAssets } from "expo-asset";
+import { NavigationContainer } from "@react-navigation/native";
+import Tabs from "./navigation/Tabs";
+import Stack from "./navigation/Stack";
+import Root from "./navigation/Root";
+import { darkTheme, lightTheme } from "./styled";
+import { ThemeProvider } from "styled-components";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -12,6 +18,7 @@ export default function App() {
   const [appIsReady, setAppIsReady] = useState(false);
   const [assets, error] = useAssets([require("./dog.jpg")]);
   const [fontIsLoaded] = useFonts(Ionicons.font);
+  const isDark = useColorScheme() === "dark";
   useEffect(() => {
     async function prepare() {
       try {
@@ -42,11 +49,10 @@ export default function App() {
   }
 
   return (
-    <View
-      onLayout={onLayoutRootView}
-      style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
-    >
-      <Text>SplashScreen Demo! 👋</Text>
-    </View>
+    <ThemeProvider theme={isDark ? darkTheme : lightTheme}>
+      <NavigationContainer onReady={onLayoutRootView}>
+        <Root />
+      </NavigationContainer>
+    </ThemeProvider>
   );
 }
