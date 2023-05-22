@@ -7,8 +7,9 @@ import { useColorScheme } from "react-native";
 import { BLACK_COLOR, DARK_GREY, LIGHT_GREY, YELLOW_COLOR } from "../colors";
 import { Ionicons } from "@expo/vector-icons";
 import Stack from "./Stack";
+import { TabNavParamList } from "./Root";
 
-const Tab = createBottomTabNavigator();
+const Tab = createBottomTabNavigator<TabNavParamList>();
 
 const Tabs = () => {
   const isDark = useColorScheme() === "dark";

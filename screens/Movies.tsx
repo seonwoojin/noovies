@@ -16,8 +16,8 @@ import { makeImgPath } from "../utils";
 import { useColorScheme } from "react-native";
 import Slide from "../components/Slide";
 import Poster from "../components/Poster";
-import { moviesApi } from "../api";
-import { useQuery } from "react-query";
+import { MovieResponse, moviesApi } from "../api";
+import { useQuery, useQueryClient } from "react-query";
 
 const Container = styled.ScrollView``;
 
@@ -92,66 +92,37 @@ const HSeparator = styled.View`
   height: 20px;
 `;
 
-const Movies: React.FC<NativeStackScreenProps<any, "Movies">> = () => {
-  const [refreshing, setRefreshing] = useState(false);
-  const { isLoading: nowPlayingLoading, data: nowPlayingData } = useQuery(
-    "nowPlaying",
-    moviesApi.nowPlaying
-  );
-  const { isLoading: upcomingLoading, data: upcomingData } = useQuery(
-    "upcoming",
-    moviesApi.upcoming
-  );
-  const { isLoading: trendingLoading, data: trendingData } = useQuery(
-    "trending",
-    moviesApi.trending
-  );
-
-  const onRefresh = async () => {};
-
-  const renderVMedia = ({ item }) => (
-    <Movie key={item.id}>
-      <Poster path={item.poster_path} />
-      <Title>
-        {item.original_title.slice(0, 12)}
-        {item.original_title.length > 12 ? "..." : null}
-      </Title>
-      <Votes>
-        {item.vote_average > 0 ? `⭐️ ${item.vote_average}/10` : `Coming soon`}
-      </Votes>
-    </Movie>
-  );
-
-  const renderHMedia = ({ item }) => (
-    <HMovie key={item.id}>
-      <Poster path={item.poster_path} />
-      <HColumn>
-        <Title>{item.original_title}</Title>
-        <Release>
-          {new Date(item.release_date).toLocaleDateString("ko", {
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-          })}
-        </Release>
-        <Overview>
-          {item.overview !== "" && item.overview.length > 80
-            ? `${item.overview.slice(0, 140)}...`
-            : item.overview}
-        </Overview>
-      </HColumn>
-    </HMovie>
-  );
-
-  const movieKeyExtractor = (item) => item.id + "";
+const Movies = () => {
+  const queryClient = useQueryClient();
+  const {
+    isLoading: nowPlayingLoading,
+    data: nowPlayingData,
+    isRefetching: isRefetchingNowPlaying,
+  } = useQuery<MovieResponse>(["movies", "nowPlaying"], moviesApi.nowPlaying);
+  const {
+    isLoading: upcomingLoading,
+    data: upcomingData,
+    isRefetching: isRefetchingUpcoming,
+  } = useQuery<MovieResponse>(["movies", "upcoming"], moviesApi.upcoming);
+  const {
+    isLoading: trendingLoading,
+    data: trendingData,
+    isRefetching: isRefetchingTrending,
+  } = useQuery<MovieResponse>(["movies", "trending"], moviesApi.trending);
+  const onRefresh = async () => {
+    queryClient.refetchQueries(["movies"]);
+  };
 
   const loading = nowPlayingLoading || upcomingLoading || trendingLoading;
+
+  const refreshing =
+    isRefetchingNowPlaying || isRefetchingUpcoming || isRefetchingTrending;
 
   return loading ? (
     <Loader>
       <ActivityIndicator />
     </Loader>
-  ) : (
+  ) : upcomingData ? (
     <FlatList
       onRefresh={onRefresh}
       refreshing={refreshing}
@@ -170,38 +141,74 @@ const Movies: React.FC<NativeStackScreenProps<any, "Movies">> = () => {
               height: SCREEN_HEIGHT / 4,
             }}
           >
-            {nowPlayingData.results.map((movie) => (
+            {nowPlayingData?.results.map((movie) => (
               <Slide
                 key={movie.id}
-                backdropPath={movie.backdrop_path}
-                posterPath={movie.poster_path}
+                backdropPath={movie.backdrop_path || ""}
+                posterPath={movie.poster_path || ""}
                 originalTitle={movie.original_title}
                 voteAverage={movie.vote_average}
                 overview={movie.overview}
+                fullData={movie}
               />
             ))}
           </Swiper>
           <ListContainer>
             <ListTitle>Trending Movies</ListTitle>
-            <TrendingScroll
-              data={trendingData.results}
-              horizontal
-              keyExtractor={movieKeyExtractor}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 30 }}
-              ItemSeparatorComponent={VSeparator}
-              renderItem={renderVMedia}
-            />
+            {trendingData ? (
+              <FlatList
+                style={{ marginTop: 20 }}
+                horizontal
+                data={trendingData.results}
+                keyExtractor={(item) => item.id + ""}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 30 }}
+                ItemSeparatorComponent={VSeparator}
+                renderItem={({ item }) => (
+                  <Movie key={item.id}>
+                    <Poster path={item.poster_path!} />
+                    <Title>
+                      {item.original_title.slice(0, 12)}
+                      {item.original_title.length > 12 ? "..." : null}
+                    </Title>
+                    <Votes>
+                      {item.vote_average > 0
+                        ? `⭐️ ${item.vote_average}/10`
+                        : `Coming soon`}
+                    </Votes>
+                  </Movie>
+                )}
+              />
+            ) : null}
           </ListContainer>
           <ComingSoonTitle>Coming soon</ComingSoonTitle>
         </>
       }
       data={upcomingData.results}
-      keyExtractor={movieKeyExtractor}
+      keyExtractor={(item) => item.id + ""}
       ItemSeparatorComponent={HSeparator}
-      renderItem={renderHMedia}
+      renderItem={({ item }) => (
+        <HMovie key={item.id}>
+          <Poster path={item.poster_path!} />
+          <HColumn>
+            <Title>{item.original_title}</Title>
+            <Release>
+              {new Date(item.release_date).toLocaleDateString("ko", {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </Release>
+            <Overview>
+              {item.overview !== "" && item.overview.length > 80
+                ? `${item.overview.slice(0, 140)}...`
+                : item.overview}
+            </Overview>
+          </HColumn>
+        </HMovie>
+      )}
     />
-  );
+  ) : null;
 };
 
 export default Movies;
